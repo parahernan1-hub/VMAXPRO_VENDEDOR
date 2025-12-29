@@ -1,11 +1,11 @@
 from flask import Flask, request
+import os
 
 app = Flask(_name_)
 
 @app.route('/webhook', methods=['GET'])
 def verify():
-    # Este es el token que usaremos luego en Meta
-    token = "vmax2025"
+    token = os.environ.get("VERIFY_TOKEN", "vmax2025")
     if request.args.get("hub.verify_token") == token:
         return request.args.get("hub.challenge")
     return "Error de token", 403
