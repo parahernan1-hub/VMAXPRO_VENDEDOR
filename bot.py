@@ -65,6 +65,6 @@ def send_message(recipient_id, message_text):
     data = {"recipient": {"id": recipient_id}, "message": {"text": message_text}}
     requests.post("https://graph.facebook.com/v12.0/me/messages", params=params, headers=headers, json=data)
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
