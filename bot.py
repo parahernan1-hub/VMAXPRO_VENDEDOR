@@ -4,7 +4,7 @@ import requests
 
 app = Flask(_name_)
 
-# Configuración de variables (las que ya tienes en Render)
+# Configuración de variables
 ACCESS_TOKEN = os.environ.get('PAGE_ACCESS_TOKEN')
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN')
 
@@ -26,35 +26,14 @@ def webhook():
                     sender_id = messaging_event["sender"]["id"]
                     user_text = messaging_event["message"].get("text").lower()
                     
-                    # --- DICCIONARIO DE INTELIGENCIA DEL BOT ---
-                    
-                    # 1. Saludos
-                    if any(word in user_text for word in ["hola", "buenas", "que tal"]):
-                        answer = "👋 ¡Hola! Soy el asistente de Volta MaxPro. ¿En qué puedo ayudarte hoy? \n\nPuedes preguntarme por: 'precios', 'stock', 'tienda' o 'whatsapp'."
-
-                    # 2. Precios y Cuánto cuesta
-                    elif any(word in user_text for word in ["precio", "cuanto", "vale", "costo", "valor"]):
-                        answer = "💰 Los precios de nuestros productos de MaxPro varían. Puedes ver el catálogo con precios actualizados aquí: https://vmaxpro.com/precios"
-
-                    # 3. Stock y Disponibilidad
-                    elif any(word in user_text for word in ["queda", "stock", "disponible", "hay"]):
-                        answer = "📦 ¡Hola! El stock vuela. Para asegurarte de que aún queda el modelo que quieres, revísalo aquí en tiempo real: https://vmaxpro.com/stock"
-
-                    # 4. Enlace a la Tienda
-                    elif any(word in user_text for word in ["tienda", "link", "web", "pagina"]):
-                        answer = "🛒 Nuestra tienda oficial es: https://vmaxpro.com \n¡Hacemos envíos rápidos!"
-
-                    # 5. Contacto Humano / WhatsApp
-                    elif any(word in user_text for word in ["whatsapp", "contacto", "hablar con alguien", "telefono"]):
-                        answer = "📱 ¡Claro! Si prefieres hablar con una persona, escríbenos al WhatsApp: https://wa.me/tu_numero_aqui"
-
-                    # 6. Información General
-                    elif "info" in user_text or "informacion" in user_text:
-                        answer = "ℹ️ En Volta MaxPro somos especialistas en tecnología de alto rendimiento. Escribe 'tienda' para ver los productos o 'precios' para saber más."
-
-                    # 7. Si no entiende nada (Respuesta de seguridad)
+                    if any(word in user_text for word in ["hola", "buenas"]):
+                        answer = "👋 ¡Hola! Soy el asistente de Volta MaxPro. ¿En qué puedo ayudarte?"
+                    elif any(word in user_text for word in ["precio", "cuanto"]):
+                        answer = "💰 Puedes ver los precios aquí: https://vmaxpro.com/precios"
+                    elif "tienda" in user_text:
+                        answer = "🛒 Nuestra tienda: https://vmaxpro.com"
                     else:
-                        answer = "🤔 No estoy seguro de haberte entendido bien, pero escribe 'ayuda' o 'info' para ver las opciones que tengo para ti. 🚀"
+                        answer = "Escribe 'hola' para empezar. 🚀"
                     
                     send_message(sender_id, answer)
     return "ok", 200
