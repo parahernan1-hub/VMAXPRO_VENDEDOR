@@ -2,7 +2,7 @@ import os
 from flask import Flask, request
 import requests
 
-app = Flask(_name_)
+app = Flask(__name__)
 
 # Configuración de variables (las que ya tienes en Render)
 ACCESS_TOKEN = os.environ.get('PAGE_ACCESS_TOKEN')
