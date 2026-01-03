@@ -1,117 +1,115 @@
-import os, sqlite3, requests, logging
-import yfinance as yf
-from flask import Flask, render_template_string, request
+import os, sqlite3, time, random, requests, threading, logging
+from flask import Flask, request, render_template_string
 from datetime import datetime
 
+# --- CONFIGURACIÓN DE REGISTROS ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-DB_PATH = "vmax_matrix.db"
 
-# Variables de entorno seguras
-SHOPIFY_TOKEN = os.environ.get('SHOPIFY_TOKEN')
-SHOP_URL = os.environ.get('SHOP_URL')
+# --- VARIABLES DE ENTORNO ---
+ACCESS_TOKEN = os.environ.get('PAGE_ACCESS_TOKEN')
+VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN')
+DB_PATH = "vmax_imperio.db"
 
+# --- 1. INICIALIZACIÓN DE LA BASE DE DATOS ---
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute('''CREATE TABLE IF NOT EXISTS leads 
-                     (nombre TEXT, whatsapp TEXT, email TEXT, interes TEXT, fecha TIMESTAMP)''')
-    logger.info("✅ INFRAESTRUCTURA VMAX LISTA")
-
-def obtener_vision_vmax():
-    # Meta inicial: 8,291 Millones
-    vision = {"oro": 0, "btc": 0, "eurusd": 0, "shop": "Desconectado", "plan": ""}
     try:
-        # Rastreadores de Activos Globales
-        oro = yf.Ticker("GC=F").history(period="1d")['Close'].iloc[-1]
-        btc = yf.Ticker("BTC-USD").history(period="1d")['Close'].iloc[-1]
-        eurusd = yf.Ticker("EURUSD=X").history(period="1d")['Close'].iloc[-1]
-        
-        vision.update({"oro": round(oro, 2), "btc": round(btc, 2), "eurusd": round(eurusd, 4)})
-
-        # Inteligencia de Shopify
-        if SHOPIFY_TOKEN and SHOP_URL:
-            vision["shop"] = "Sincronizado ✅"
-            
-        # El Consultor Visionario: Plan del día para los 8,291M
-        if btc > 60000:
-            vision["plan"] = "🔱 VMAX: El mercado crypto está fuerte. Reinvierte beneficios de Shopify en BTC. Busca proveedores en Europa (EUR bajo)."
-        else:
-            vision["plan"] = "🔱 VMAX: Oro al alza. Protege capital. Sube precios en Shopify un 3% para cubrir inflación."
-            
-    except: pass
-    return vision
-
-@app.route('/')
-def dashboard():
-    v = obtener_vision_vmax()
-    with sqlite3.connect(DB_PATH) as conn:
-        leads = conn.execute('SELECT nombre, whatsapp, email, interes FROM leads ORDER BY fecha DESC LIMIT 10').fetchall()
-    
-    html = f'''
-    <body style="background:#000; color:#0f0; font-family:'Courier New', monospace; padding:20px;">
-        <h1 style="text-shadow: 0 0 15px #0f0; text-align:center;">🔱 VMAXPRO GLOBAL CONSULTANCY 🔱</h1>
-        
-        <div style="border:2px solid #0f0; padding:10px; margin-bottom:20px; text-align:center; background:rgba(0,255,0,0.1);">
-            <h2 style="margin:0;">🎯 META ACTUAL: $8,291,000,000</h2>
-            <p>Estatus: Analizando rutas de arbitraje y activos de refugio...</p>
-        </div>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:15px; margin-bottom:20px;">
-            <div style="border:1px solid #0f0; padding:15px;">
-                <h3>💰 FINANZAS</h3>
-                <p>ORO: ${v['oro']}</p>
-                <p>BITCOIN: ${v['btc']}</p>
-                <p>EUR/USD: {v['eurusd']}</p>
-            </div>
-            <div style="border:1px solid #0f0; padding:15px;">
-                <h3>🏪 VMAX E-COMMERCE</h3>
-                <p>Shopify: {v['shop']}</p>
-                <p>Arbitraje: Rastreando productos ganadores...</p>
-            </div>
-            <div style="border:1px solid #0f0; padding:15px; color:#fff; background:#003300;">
-                <h3>🧠 PLAN DE ACCIÓN HOY</h3>
-                <p>{v['plan']}</p>
-            </div>
-        </div>
-
-        <div style="border:1px solid #0f0; padding:15px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3>👥 SOCIOS CLUB VIP DETECTADOS</h3>
-                <a href="/registro" target="_blank" style="background:#0f0; color:#000; padding:5px 10px; text-decoration:none; font-weight:bold;">ABRIR PORTAL REGISTRO</a>
-            </div>
-            <table border="1" style="width:100%; color:#0f0; border-collapse:collapse; margin-top:10px;">
-                <tr><th>Nombre</th><th>WhatsApp</th><th>Email</th><th>Interés</th></tr>
-                {''.join(f"<tr><td>{l[0]}</td><td>{l[1]}</td><td>{l[2]}</td><td>{l[3]}</td></tr>" for l in leads)}
-            </table>
-        </div>
-    </body>
-    '''
-    return render_template_string(html)
-
-@app.route('/registro', methods=['GET', 'POST'])
-def registro():
-    if request.method == 'POST':
         with sqlite3.connect(DB_PATH) as conn:
-            conn.execute('INSERT INTO leads VALUES (?, ?, ?, ?, ?)', 
-                         (request.form['n'], request.form['w'], request.form['e'], request.form['i'], datetime.now()))
+            c = conn.cursor()
+            c.execute('CREATE TABLE IF NOT EXISTS leads (id TEXT PRIMARY KEY, msg TEXT, score REAL, fecha TIMESTAMP)')
+            c.execute('CREATE TABLE IF NOT EXISTS mercado (id INTEGER PRIMARY KEY, item TEXT, margen REAL, link TEXT)')
             conn.commit()
-        return "<body style='background:#000;color:#0f0;text-align:center;padding-top:100px;'><h1>🔱 ACCESO SOLICITADO.</h1><p>VMAXPRO VISIONARY te contactará.</p></body>"
-    return '''
-    <body style="background:#000; color:#0f0; font-family:sans-serif; text-align:center; padding:30px;">
-        <h2>🔱 VOLTAMAXPRO ELITE 🔱</h2>
-        <form method="post" style="display:inline-block; border:1px solid #0f0; padding:30px; text-align:left;">
-            Nombre:<br><input name="n" style="width:100%;" required><br><br>
-            WhatsApp:<br><input name="w" style="width:100%;" required><br><br>
-            Email:<br><input type="email" name="e" style="width:100%;" required><br><br>
-            ¿En qué podemos ayudarte?<br><textarea name="i" style="width:100%; height:50px;"></textarea><br><br>
-            <button type="submit" style="background:#0f0; width:100%; padding:10px; font-weight:bold; cursor:pointer;">SOLICITAR ACCESO VIP</button>
-        </form>
-    </body>
-    '''
+        logger.info("✅ Base de datos sincronizada.")
+    except Exception as e:
+        logger.error(f"Error DB: {e}")
+
+# --- 2. EL CAZADOR PROACTIVO ---
+def motor_cazador():
+    while True:
+        try:
+            oportunidades = [
+                ("VMax Cooler Pro", 65.4, "https://vmaxpro.com/shop1"),
+                ("Batería Litio Max", 42.1, "https://vmaxpro.com/shop2"),
+                ("Inmueble Santander Urgente", 15.0, "https://idealista.com/chollos")
+            ]
+            with sqlite3.connect(DB_PATH) as conn:
+                for item, margen, link in oportunidades:
+                    conn.execute('INSERT OR IGNORE INTO mercado (item, margen, link) VALUES (?, ?, ?)', (item, margen, link))
+            time.sleep(3600) 
+        except Exception as e:
+            time.sleep(60)
+
+# --- 3. WEBHOOKS ---
+@app.route('/webhook', methods=['GET'])
+def verify():
+    if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
+        if request.args.get("hub.verify_token") == VERIFY_TOKEN:
+            return request.args.get("hub.challenge"), 200
+    return "Bot de Volta en línea", 200
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    data = request.get_json()
+    if data and data.get("object") == "page":
+        for entry in data["entry"]:
+            for event in entry.get("messaging", []):
+                if event.get("message"):
+                    sender_id = event["sender"]["id"]
+                    user_text = event["message"].get("text", "").lower()
+                    threading.Thread(target=procesar_y_responder, args=(sender_id, user_text)).start()
+    return "ok", 200
+
+# --- 4. LÓGICA DE CIERRE ---
+def procesar_y_responder(uid, msg):
+    score = 1.0 if any(word in msg for word in ["precio", "cuanto", "tienda", "comprar"]) else 0.4
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute('INSERT OR REPLACE INTO leads VALUES (?, ?, ?, ?)', (uid, msg, score, datetime.now()))
+    
+    time.sleep(random.uniform(2, 5))
+    
+    if score == 1.0:
+        answer = "💰 ¡Hola! Los precios actuales están aquí: https://vmaxpro.com/precios. Envío gratis a Santander hoy. 🚀"
+    else:
+        answer = "👋 ¡Hola! Soy el asistente de Volta. ¿En qué puedo ayudarte?"
+
+    params = {"access_token": ACCESS_TOKEN}
+    requests.post("https://graph.facebook.com/v12.0/me/messages", params=params, json={"recipient": {"id": uid}, "message": {"text": answer}})
+
+# --- 5. DASHBOARD ---
+@app.route('/dashboard')
+def dashboard():
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            leads = conn.execute("SELECT * FROM leads ORDER BY score DESC, fecha DESC LIMIT 15").fetchall()
+            mercado = conn.execute("SELECT * FROM mercado ORDER BY margen DESC").fetchall()
+        
+        return render_template_string("""
+            <body style="background:#0a0a0a; color:#00ff00; font-family:monospace; padding:30px;">
+                <h1>🔱 VMAX - CONTROL TÁCTICO</h1>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div style="border:1px solid #00ff00; padding:15px;">
+                        <h3>🎯 LEADS FACEBOOK</h3>
+                        {% for l in leads %}
+                        <p>[{{l.score}}] {{l.id}}: {{l.msg}}</p>
+                        {% endfor %}
+                    </div>
+                    <div style="border:1px solid #00ffff; padding:15px; color:#00ffff;">
+                        <h3>💰 MERCADO</h3>
+                        {% for m in mercado %}
+                        <p>{{ m.item }} - {{ m.margen }}%</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </body>
+        """, leads=leads, mercado=mercado)
+    except Exception as e:
+        return f"Error en Dashboard: {e}"
 
 if __name__ == "__main__":
     init_db()
+    threading.Thread(target=motor_cazador, daemon=True).start()
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
