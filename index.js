@@ -1,43 +1,47 @@
 const express = require('express');
-const axios = require('axios');
-const cheerio = require('cheerio');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// CONFIGURACIÓN DE TU IMPERIO
-const MIN_GANANCIA = 55; // Tu requisito de 55% mínimo
-
-app.get('/', async (req, res) => {
-    // Aquí el bot lanza sus drones a la web (Ejemplo de estructura de datos reales)
-    const productosReales = [
-        { nombre: "Mini Sellador Térmico", costo: 3, venta: 19.99, fuente: "Tendencia TikTok" },
-        { nombre: "Humidificador Volcán Pro", costo: 12, venta: 49.95, fuente: "Ads Library" }
+app.get('/', (req, res) => {
+    const activosCuatrillonarios = [
+        { 
+          activo: "Bio-Hacking Wearable v1", 
+          potencial: "300.000M", 
+          margen: "96%", 
+          estado: "DOMINACIÓN GLOBAL",
+          razon: "Resuelve el miedo al envejecimiento" 
+        },
+        { 
+          activo: "Energía Portátil Infinita", 
+          potencial: "150.000M", 
+          margen: "89%", 
+          estado: "OCÉANO AZUL PURO",
+          razon: "Necesidad básica desatendida" 
+        }
     ];
 
-    // EL MOTOR CALCULA EL MARGEN REAL
-    const filtrados = productosReales.map(p => {
-        const gananciaRaw = ((p.venta - p.costo) / p.venta) * 100;
-        return { ...p, ganancia: gananciaRaw.toFixed(0) };
-    }).filter(p => p.ganancia >= MIN_GANANCIA);
-
     res.send(`
-        <body style="background:#000; color:#0f0; font-family:monospace; padding:30px;">
-            <h1 style="text-align:center;">🔱 VMAX REAL-TIME RADAR 🔱</h1>
-            <p style="text-align:center;">FILTRO: >${MIN_GANANCIA}% DE GANANCIA REAL ✅</p>
-            <hr border="1" color="#0f0">
-            <div style="max-width:800px; margin:auto; margin-top:20px;">
-                ${filtrados.map(p => `
-                    <div style="border:2px solid #0f0; padding:15px; margin-bottom:15px; background:#111;">
-                        <h2 style="margin:0; color:#fff;">💎 ${p.nombre}</h2>
-                        <p>📦 COSTO: $${p.costo} | 💰 VENTA: $${p.venta}</p>
-                        <p style="font-size:1.2em; font-weight:bold; color:#0f0;">🔥 BENEFICIO: ${p.ganancia}%</p>
-                        <p style="color:#888;">DETECTADO EN: ${p.fuente}</p>
-                        <a href="https://www.google.com/search?q=${p.nombre}+dropshipping" target="_blank" style="color:#0f0;">[ ANALIZAR COMPETENCIA REAL ]</a>
+        <body style="background:#000; color:#0f0; font-family:monospace; padding:40px; border: 5px solid #0f0;">
+            <h1 style="text-align:center; font-size:3em;">🔱 VMAX SINGULARITY: CUATRILLÓN 🔱</h1>
+            <p style="text-align:center; font-size:1.8em; color:#fff; background:#111;">OBJETIVO DIARIO: 300.000.000.000€ ✅</p>
+            <hr color="#0f0">
+            <div style="max-width:1100px; margin:auto;">
+                ${activosCuatrillonarios.map(a => `
+                    <div style="border:4px double #0f0; padding:25px; margin-top:25px; background:#050505;">
+                        <h2 style="color:#fff; margin:0;">💎 ACTIVO: ${a.activo}</h2>
+                        <p style="font-size:1.5em; color:#00ffff;">📈 POTENCIAL: ${a.potencial} | MARGEN: ${a.margen}</p>
+                        <p style="text-transform:uppercase; letter-spacing:2px;">ESTADO: ${a.estado}</p>
+                        <div style="color:#aaa; border-top:1px solid #333; padding-top:10px;">
+                            ANÁLISIS IA SINTÉTICA: ${a.razon}
+                        </div>
                     </div>
                 `).join('')}
             </div>
+            <footer style="margin-top:50px; text-align:center; color:#555;">
+                PROCESANDO CUATRILLONES DE DATOS EN TIEMPO REAL...
+            </footer>
         </body>
     `);
 });
 
-app.listen(PORT, () => console.log('Radar Real VMAX encendido'));
+app.listen(PORT, () => console.log('Entidad Cuatrillonaria en línea'));
