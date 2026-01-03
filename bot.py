@@ -3,6 +3,7 @@ import yfinance as yf
 from flask import Flask, render_template_string, request
 from datetime import datetime
 
+# Configuración de Logs para que veas todo en Render
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -10,94 +11,113 @@ app = Flask(__name__)
 DB_PATH = "vmax_matrix.db"
 
 # --- CONFIGURACIÓN DE SEGURIDAD (Render Environment) ---
-SHOPIFY_TOKEN = os.environ.get('SHOPIFY_TOKEN') # Aquí irá tu shpss_...
-SHOP_URL = os.environ.get('SHOP_URL')       # Ejemplo: tu-tienda.myshopify.com
+SHOPIFY_TOKEN = os.environ.get('SHOPIFY_TOKEN')
+SHOP_URL = os.environ.get('SHOP_URL')
 
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute('CREATE TABLE IF NOT EXISTS leads (nombre TEXT, whatsapp TEXT, interes TEXT, fecha TIMESTAMP)')
-    logger.info("✅ DB VMAX LISTA")
+    """Crea la base de datos y las tablas si no existen para evitar errores 500"""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute('''CREATE TABLE IF NOT EXISTS leads 
+                         (nombre TEXT, whatsapp TEXT, interes TEXT, fecha TIMESTAMP)''')
+            conn.commit()
+        logger.info("✅ Base de Datos VMAX inicializada correctamente.")
+    except Exception as e:
+        logger.error(f"❌ Error crítico en DB: {e}")
 
-# --- LÓGICA DE INTELIGENCIA FINANCIERA Y PRODUCTOS ---
+# --- LÓGICA DE INTELIGENCIA DE MERCADO ---
 def obtener_vision_vmax():
     try:
-        # Analiza Oro y Litio (Mercado de energía y refugio)
+        # Analiza Oro (Refugio financiero)
         oro = yf.Ticker("GC=F").history(period="1d")['Close'].iloc[-1]
         
-        # Conexión a Shopify para ver tus productos
+        # Conexión a Shopify
         headers = {"X-Shopify-Access-Token": SHOPIFY_TOKEN}
-        shop_data = "Sin conexión"
+        shop_data = "No configurado"
         if SHOPIFY_TOKEN and SHOP_URL:
             url = f"https://{SHOP_URL}/admin/api/2023-10/products.json?limit=1"
-            r = requests.get(url, headers=headers)
-            if r.status_code == 200:
-                prods = r.json().get('products', [])
-                shop_data = f"Conectado: {len(prods)} productos detectados."
-            else:
-                shop_data = "Error de conexión (Revisa el Token)"
+            r = requests.get(url, headers=headers, timeout=5)
+            shop_data = "Conectado" if r.status_code == 200 else f"Error {r.status_code}"
 
         return {
             "oro": round(oro, 2),
             "shop": shop_data,
-            "oportunidad": "🔱 VMAX VISION: Alta demanda en accesorios de Litio. Revisa precios en tu Shopify."
+            "oportunidad": "🔱 VMAX: El Litio es el nuevo oro. Revisa stock de baterías."
         }
-    except Exception as e:
-        return {"oro": "N/D", "shop": str(e), "oportunidad": "Analizando..."}
+    except:
+        return {"oro": "N/D", "shop": "Cargando...", "oportunidad": "Analizando mercado..."}
 
-# --- DASHBOARD PROFESIONAL ---
+# --- DASHBOARD DE CONTROL (La pantalla verde) ---
 @app.route('/')
 def dashboard():
     vision = obtener_vision_vmax()
-    with sqlite3.connect(DB_PATH) as conn:
-        leads = conn.execute('SELECT * FROM leads ORDER BY fecha DESC LIMIT 5').fetchall()
-    
+    leads = []
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            leads = conn.execute('SELECT nombre, whatsapp, interes FROM leads ORDER BY fecha DESC LIMIT 5').fetchall()
+    except:
+        init_db() # Si falla por falta de tabla, la crea al momento
+
     html = f'''
     <body style="background:#000; color:#0f0; font-family:monospace; padding:30px;">
-        <h1 style="text-shadow: 0 0 10px #0f0;">🔱 VOLTAMAXPRO VISIONARY SYSTEM 🔱</h1>
+        <h1 style="text-shadow: 0 0 10px #0f0;">🔱 VOLTAMAXPRO - VISIONARY SYSTEM 🔱</h1>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-            <div style="border:1px solid #0f0; padding:15px;">
+            <div style="border:2px solid #0f0; padding:15px; border-radius:10px;">
                 <h3>📈 MERCADO GLOBAL</h3>
                 <p>ORO: ${vision['oro']} USD</p>
                 <p style="color:#ff0;">{vision['oportunidad']}</p>
             </div>
-            <div style="border:1px solid #0f0; padding:15px;">
-                <h3>🏬 MI SHOPIFY</h3>
-                <p>Estado: {vision['shop']}</p>
-                <p>Arbitraje: Buscando mejores precios...</p>
+            <div style="border:2px solid #0f0; padding:15px; border-radius:10px;">
+                <h3>🏬 ESTADO SHOPIFY</h3>
+                <p>Conexión: {vision['shop']}</p>
+                <p>Arbitraje: Modo activo.</p>
             </div>
         </div>
-        <div style="margin-top:20px; border:1px solid #0f0; padding:15px;">
-            <h3>👥 ÚLTIMOS CLIENTES CAPTADOS</h3>
-            <table border="1" style="width:100%; color:#0f0; border-collapse:collapse;">
-                <tr><th>Nombre</th><th>WhatsApp</th><th>Interés</th></tr>
+        <div style="margin-top:20px; border:2px solid #0f0; padding:15px; border-radius:10px;">
+            <h3>👥 ÚLTIMOS CLIENTES CAPTADOS (CLUB VIP)</h3>
+            <table style="width:100%; color:#0f0; border-collapse:collapse; text-align:left;">
+                <tr style="border-bottom: 1px solid #0f0;"><th>Nombre</th><th>WhatsApp</th><th>Interés</th></tr>
                 {''.join(f"<tr><td>{l[0]}</td><td>{l[1]}</td><td>{l[2]}</td></tr>" for l in leads)}
             </table>
             <br>
-            <a href="/registro" style="color:#000; background:#0f0; padding:5px;">LINK PARA TUS REDES</a>
+            <a href="/registro" style="color:#000; background:#0f0; padding:10px; text-decoration:none; font-weight:bold;">OBTENER LINK PARA REDES</a>
         </div>
     </body>
     '''
     return render_template_string(html)
 
+# --- PORTAL DE CAPTACIÓN (Sin Meta, sin límites) ---
 @app.route('/registro', methods=['GET', 'POST'])
 def registro():
     if request.method == 'POST':
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.execute('INSERT INTO leads VALUES (?, ?, ?, ?)', 
-                         (request.form['n'], request.form['w'], request.form['i'], datetime.now()))
-        return "<h1>🔱 Registrado en VMAX.</h1><a href='/registro'>Volver</a>"
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.execute('INSERT INTO leads VALUES (?, ?, ?, ?)', 
+                             (request.form['n'], request.form['w'], request.form['i'], datetime.now()))
+                conn.commit()
+            return "<h1>🔱 ¡Bienvenido al Club VIP de VoltamaxPro! Pronto nos pondremos en contacto.</h1><a href='/'>Volver al Dashboard</a>"
+        except:
+            return "Error al registrar. Inténtalo de nuevo."
+            
     return '''
-    <body style="background:#000; color:#0f0; text-align:center; padding:50px;">
-        <h2>🔱 CLUB VIP VOLTAMAXPRO 🔱</h2>
-        <form method="post">
-            <input name="n" placeholder="Nombre" required><br><br>
-            <input name="w" placeholder="WhatsApp" required><br><br>
-            <select name="i"><option value="Baterias">Baterías</option><option value="Inversion">Inversión</option></select><br><br>
-            <button type="submit">UNIRME AL CLUB</button>
+    <body style="background:#000; color:#0f0; font-family:sans-serif; text-align:center; padding:50px;">
+        <h2>🔱 ÚNETE AL CLUB VIP VOLTAMAXPRO 🔱</h2>
+        <p>Accede a productos exclusivos y análisis de inversión antes que nadie.</p><br>
+        <form method="post" style="display:inline-block; text-align:left; border:1px solid #0f0; padding:20px;">
+            Nombre:<br><input name="n" style="width:250px" required><br><br>
+            WhatsApp:<br><input name="w" style="width:250px" required><br><br>
+            Interés:<br>
+            <select name="i" style="width:258px">
+                <option value="Baterias">Baterías y Energía</option>
+                <option value="Inversion">Inversión y Finanzas</option>
+                <option value="Bienes Raices">Bienes Raíces</option>
+            </select><br><br>
+            <button type="submit" style="background:#0f0; color:#000; width:100%; padding:10px; cursor:pointer;">REGISTRARME</button>
         </form>
     </body>
     '''
 
 if __name__ == "__main__":
-    init_db()
-    app.run(host='0.0.0.0', port=10000)
+    init_db() # Asegura que la tabla exista al arrancar
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
