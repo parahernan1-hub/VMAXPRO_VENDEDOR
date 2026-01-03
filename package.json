@@ -1,10 +1,12 @@
 {
-  "name": "vmax-radar-ganador",
-  "version": "1.0.0",
+  "name": "vmax-radar-real",
+  "version": "6.0.0",
+  "main": "index.js",
   "scripts": { "start": "node index.js" },
   "dependencies": {
     "express": "^4.18.2",
     "axios": "^1.6.0",
-    "cheerio": "^1.0.0-rc.12"
+    "cheerio": "^1.0.0-rc.12",
+    "node-cron": "^3.0.3"
   }
 }
