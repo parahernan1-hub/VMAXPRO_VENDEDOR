@@ -1,115 +1,98 @@
-import os, sqlite3, time, random, requests, threading, logging
-from flask import Flask, request, render_template_string
+import os, sqlite3, requests, logging
+import yfinance as yf
+from flask import Flask, render_template_string, request
 from datetime import datetime
 
-# --- CONFIGURACIÓN DE REGISTROS ---
+# Configuración de sistema de alto rendimiento
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 app = Flask(__name__)
+DB_PATH = "vmax_matrix.db"
 
-# --- VARIABLES DE ENTORNO ---
-ACCESS_TOKEN = os.environ.get('PAGE_ACCESS_TOKEN')
-VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN')
-DB_PATH = "vmax_imperio.db"
+def get_db():
+    """Conexión Blindada: Crea tablas al vuelo si faltan"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('''CREATE TABLE IF NOT EXISTS leads 
+                 (nombre TEXT, whatsapp TEXT, email TEXT, interes TEXT, fecha TIMESTAMP)''')
+    conn.commit()
+    return conn
 
-# --- 1. INICIALIZACIÓN DE LA BASE DE DATOS ---
-def init_db():
+def get_vision():
+    """Consultoría Instantánea: Metas y Mercados"""
+    res = {"oro": "N/D", "btc": "N/D", "plan": "Calculando ruta de cuatrillones..."}
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            c = conn.cursor()
-            c.execute('CREATE TABLE IF NOT EXISTS leads (id TEXT PRIMARY KEY, msg TEXT, score REAL, fecha TIMESTAMP)')
-            c.execute('CREATE TABLE IF NOT EXISTS mercado (id INTEGER PRIMARY KEY, item TEXT, margen REAL, link TEXT)')
-            conn.commit()
-        logger.info("✅ Base de datos sincronizada.")
-    except Exception as e:
-        logger.error(f"Error DB: {e}")
+        # Consulta de activos en un solo bloque para velocidad
+        oro = yf.Ticker("GC=F").fast_info['last_price']
+        btc = yf.Ticker("BTC-USD").fast_info['last_price']
+        res.update({"oro": round(oro, 2), "btc": round(btc, 2)})
+        res["plan"] = f"🔱 VMAX: ORO en ${res['oro']}. Foco en acumulación y captación VIP."
+    except: pass
+    return res
 
-# --- 2. EL CAZADOR PROACTIVO ---
-def motor_cazador():
-    while True:
-        try:
-            oportunidades = [
-                ("VMax Cooler Pro", 65.4, "https://vmaxpro.com/shop1"),
-                ("Batería Litio Max", 42.1, "https://vmaxpro.com/shop2"),
-                ("Inmueble Santander Urgente", 15.0, "https://idealista.com/chollos")
-            ]
-            with sqlite3.connect(DB_PATH) as conn:
-                for item, margen, link in oportunidades:
-                    conn.execute('INSERT OR IGNORE INTO mercado (item, margen, link) VALUES (?, ?, ?)', (item, margen, link))
-            time.sleep(3600) 
-        except Exception as e:
-            time.sleep(60)
-
-# --- 3. WEBHOOKS ---
-@app.route('/webhook', methods=['GET'])
-def verify():
-    if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
-        if request.args.get("hub.verify_token") == VERIFY_TOKEN:
-            return request.args.get("hub.challenge"), 200
-    return "Bot de Volta en línea", 200
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    data = request.get_json()
-    if data and data.get("object") == "page":
-        for entry in data["entry"]:
-            for event in entry.get("messaging", []):
-                if event.get("message"):
-                    sender_id = event["sender"]["id"]
-                    user_text = event["message"].get("text", "").lower()
-                    threading.Thread(target=procesar_y_responder, args=(sender_id, user_text)).start()
-    return "ok", 200
-
-# --- 4. LÓGICA DE CIERRE ---
-def procesar_y_responder(uid, msg):
-    score = 1.0 if any(word in msg for word in ["precio", "cuanto", "tienda", "comprar"]) else 0.4
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute('INSERT OR REPLACE INTO leads VALUES (?, ?, ?, ?)', (uid, msg, score, datetime.now()))
-    
-    time.sleep(random.uniform(2, 5))
-    
-    if score == 1.0:
-        answer = "💰 ¡Hola! Los precios actuales están aquí: https://vmaxpro.com/precios. Envío gratis a Santander hoy. 🚀"
-    else:
-        answer = "👋 ¡Hola! Soy el asistente de Volta. ¿En qué puedo ayudarte?"
-
-    params = {"access_token": ACCESS_TOKEN}
-    requests.post("https://graph.facebook.com/v12.0/me/messages", params=params, json={"recipient": {"id": uid}, "message": {"text": answer}})
-
-# --- 5. DASHBOARD ---
-@app.route('/dashboard')
+@app.route('/')
 def dashboard():
+    """Terminal de Control de 8,291 Millones"""
+    v = get_vision()
+    leads = []
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.row_factory = sqlite3.Row
-            leads = conn.execute("SELECT * FROM leads ORDER BY score DESC, fecha DESC LIMIT 15").fetchall()
-            mercado = conn.execute("SELECT * FROM mercado ORDER BY margen DESC").fetchall()
-        
-        return render_template_string("""
-            <body style="background:#0a0a0a; color:#00ff00; font-family:monospace; padding:30px;">
-                <h1>🔱 VMAX - CONTROL TÁCTICO</h1>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                    <div style="border:1px solid #00ff00; padding:15px;">
-                        <h3>🎯 LEADS FACEBOOK</h3>
-                        {% for l in leads %}
-                        <p>[{{l.score}}] {{l.id}}: {{l.msg}}</p>
-                        {% endfor %}
-                    </div>
-                    <div style="border:1px solid #00ffff; padding:15px; color:#00ffff;">
-                        <h3>💰 MERCADO</h3>
-                        {% for m in mercado %}
-                        <p>{{ m.item }} - {{ m.margen }}%</p>
-                        {% endfor %}
-                    </div>
-                </div>
-            </body>
-        """, leads=leads, mercado=mercado)
-    except Exception as e:
-        return f"Error en Dashboard: {e}"
+        db = get_db()
+        leads = db.execute('SELECT nombre, whatsapp, email, interes FROM leads ORDER BY fecha DESC LIMIT 15').fetchall()
+        db.close()
+    except: pass
+    
+    return render_template_string('''
+    <body style="background:#000; color:#0f0; font-family:monospace; padding:15px; font-size:14px;">
+        <div style="border:2px solid #0f0; padding:10px; margin-bottom:15px; text-align:center;">
+            <h1 style="margin:0;">🔱 VMAXPRO TERMINAL 🔱</h1>
+            <h2 style="color:#fff;">META: $8,291,000,000</h2>
+        </div>
+
+        <div style="display:flex; justify-content:space-around; border:1px solid #0f0; padding:10px; margin-bottom:15px;">
+            <span>💰 ORO: ${{v.oro}}</span>
+            <span>💎 BTC: ${{v.btc}}</span>
+        </div>
+
+        <div style="border:1px solid #0f0; padding:10px; background:rgba(0,255,0,0.1); margin-bottom:15px;">
+            <p style="margin:0;"><b>PLAN:</b> {{v.plan}}</p>
+        </div>
+
+        <div style="border:1px solid #0f0; padding:10px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <h3 style="margin:0;">👥 BÓVEDA DE LEADS</h3>
+                <a href="/registro" target="_blank" style="background:#0f0; color:#000; padding:2px 8px; text-decoration:none; font-weight:bold;">REGISTRO VIP</a>
+            </div>
+            <table style="width:100%; color:#0f0; border-collapse:collapse; text-align:left; font-size:12px;">
+                <tr style="border-bottom:1px solid #0f0;"><th>Socio</th><th>WhatsApp</th><th>Email</th><th>Interés</th></tr>
+                {% for l in leads %}
+                <tr style="border-bottom:0.5px solid #222;"><td>{{l[0]}}</td><td>{{l[1]}}</td><td>{{l[2]}}</td><td>{{l[3]}}</td></tr>
+                {% endfor %}
+            </table>
+        </div>
+    </body>
+    ''', v=v, leads=leads)
+
+@app.route('/registro', methods=['GET', 'POST'])
+def registro():
+    """Portal de Captura Profesional"""
+    if request.method == 'POST':
+        db = get_db()
+        db.execute('INSERT INTO leads VALUES (?,?,?,?,?)', 
+                   (request.form['n'], request.form['w'], request.form['e'], request.form['i'], datetime.now()))
+        db.commit()
+        db.close()
+        return "<body style='background:#000;color:#0f0;text-align:center;padding:50px;'><h1>🔱 REGISTRADO EN VMAXPRO.</h1><a href='/' style='color:#fff;'>Dashboard</a></body>"
+    
+    return '''
+    <body style="background:#000; color:#0f0; font-family:sans-serif; text-align:center; padding:20px;">
+        <h3>🔱 CLUB VIP VOLTAMAXPRO 🔱</h3>
+        <form method="post" style="display:inline-block; text-align:left; border:1px solid #0f0; padding:20px; border-radius:8px;">
+            NOMBRE:<br><input name="n" style="width:220px;margin-bottom:10px;" required><br>
+            WHATSAPP:<br><input name="w" style="width:220px;margin-bottom:10px;" required><br>
+            EMAIL:<br><input type="email" name="e" style="width:220px;margin-bottom:10px;" required><br>
+            INTERÉS (OPCIONAL):<br><textarea name="i" style="width:220px;height:40px;"></textarea><br><br>
+            <button type="submit" style="background:#0f0; color:#000; width:100%; padding:10px; font-weight:bold; border:none; cursor:pointer;">SOLICITAR ACCESO</button>
+        </form>
+    </body>
+    '''
 
 if __name__ == "__main__":
-    init_db()
-    threading.Thread(target=motor_cazador, daemon=True).start()
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
